@@ -47,6 +47,8 @@ ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
 ${PROJECT_SOURCE_DIR}/include/CameraModels
 ${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2
+${PROJECT_SOURCE_DIR}/Thirdparty/g2o
 ${EIGEN3_INCLUDE_DIR}
 ${Pangolin_INCLUDE_DIRS}
 )
@@ -114,6 +116,8 @@ include/Config.h
 include/Settings.h)
 
 add_subdirectory(Thirdparty/g2o)
+add_subdirectory(Thirdparty/DBoW2)
+add_subdirectory(Thirdparty/Sophus)
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
@@ -215,26 +219,26 @@ endif()
 #     target_link_libraries(mono_realsense_D435i ${PROJECT_NAME})
 # endif()
 
-# #Monocular inertial examples
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular-Inertial)
+#Monocular inertial examples
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular-Inertial)
 
-# add_executable(mono_inertial_euroc
-#         Examples/Monocular-Inertial/mono_inertial_euroc.cc)
-# target_link_libraries(mono_inertial_euroc ${PROJECT_NAME})
+add_executable(mono_inertial_euroc
+        Examples/Monocular-Inertial/mono_inertial_euroc.cc)
+target_link_libraries(mono_inertial_euroc ${PROJECT_NAME})
 
-# add_executable(mono_inertial_tum_vi
-#         Examples/Monocular-Inertial/mono_inertial_tum_vi.cc)
-# target_link_libraries(mono_inertial_tum_vi ${PROJECT_NAME})
+add_executable(mono_inertial_tum_vi
+        Examples/Monocular-Inertial/mono_inertial_tum_vi.cc)
+target_link_libraries(mono_inertial_tum_vi ${PROJECT_NAME})
 
-# if(realsense2_FOUND)
-#     add_executable(mono_inertial_realsense_t265
-#             Examples/Monocular-Inertial/mono_inertial_realsense_t265.cc)
-#     target_link_libraries(mono_inertial_realsense_t265 ${PROJECT_NAME})
+if(realsense2_FOUND)
+    add_executable(mono_inertial_realsense_t265
+            Examples/Monocular-Inertial/mono_inertial_realsense_t265.cc)
+    target_link_libraries(mono_inertial_realsense_t265 ${PROJECT_NAME})
 
-#     add_executable(mono_inertial_realsense_D435i
-#             Examples/Monocular-Inertial/mono_inertial_realsense_D435i.cc)
-#     target_link_libraries(mono_inertial_realsense_D435i ${PROJECT_NAME})
-# endif()
+    add_executable(mono_inertial_realsense_D435i
+            Examples/Monocular-Inertial/mono_inertial_realsense_D435i.cc)
+    target_link_libraries(mono_inertial_realsense_D435i ${PROJECT_NAME})
+endif()
 
 # #Stereo Inertial examples
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Stereo-Inertial)
