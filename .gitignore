@@ -1,5 +1,7 @@
 # Ignore all
 *
+*.png
+fold/mav0/*
 
 # Unignore all with extensions
 !*.*
