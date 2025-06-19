@@ -62,6 +62,10 @@ ${EIGEN3_INCLUDE_DIR}
 ${Pangolin_INCLUDE_DIRS}
 )
 
+add_subdirectory(Thirdparty/DBoW2)
+add_subdirectory(Thirdparty/g2o)
+add_subdirectory(Thirdparty/Sophus)
+
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(${PROJECT_NAME} SHARED
@@ -125,10 +129,6 @@ include/TwoViewReconstruction.h
 include/SerializationUtils.h
 include/Config.h
 include/Settings.h)
-
-add_subdirectory(Thirdparty/g2o)
-add_subdirectory(Thirdparty/DBoW2)
-add_subdirectory(Thirdparty/Sophus)
 
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
