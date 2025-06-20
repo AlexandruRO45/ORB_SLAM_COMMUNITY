@@ -56,15 +56,10 @@ ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
 ${PROJECT_SOURCE_DIR}/include/CameraModels
 ${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2
-${PROJECT_SOURCE_DIR}/Thirdparty/g2o
 ${EIGEN3_INCLUDE_DIR}
 ${Pangolin_INCLUDE_DIRS}
 )
 
-add_subdirectory(Thirdparty/DBoW2)
-add_subdirectory(Thirdparty/g2o)
-add_subdirectory(Thirdparty/Sophus)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
@@ -130,27 +125,40 @@ include/SerializationUtils.h
 include/Config.h
 include/Settings.h)
 
+add_subdirectory(Thirdparty/g2o)
+add_subdirectory(Thirdparty/DBoW2)
+add_subdirectory(Thirdparty/Sophus)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+${PROJECT_SOURCE_DIR}
+${PROJECT_SOURCE_DIR}/include
+${PROJECT_SOURCE_DIR}/include/CameraModels
+${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
+${EIGEN3_INCLUDE_DIR}
+${Pangolin_INCLUDE_DIRS}
+)
+
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${PCL_LIBRARIES} 
 ${OCTOMAP_LIBRARIES}
 ${Pangolin_LIBRARIES}
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+DBoW2
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 -lboost_serialization
 -lcrypto
 )
 
 # If RealSense SDK is found the library is added and its examples compiled
-# if(realsense2_FOUND)
-#     include_directories(${PROJECT_NAME}
-#     ${realsense_INCLUDE_DIR}
-#     )
-#     target_link_libraries(${PROJECT_NAME}
-#     ${realsense2_LIBRARY}
-#     )
-# endif()
+if(realsense2_FOUND)
+    include_directories(${PROJECT_NAME}
+    ${realsense_INCLUDE_DIR}
+    )
+    target_link_libraries(${PROJECT_NAME}
+    ${realsense2_LIBRARY}
+    )
+endif()
 
 
 # Build examples
