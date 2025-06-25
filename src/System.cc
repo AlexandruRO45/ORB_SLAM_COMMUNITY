@@ -15,61 +15,57 @@
 * You should have received a copy of the GNU General Public License along with ORB-SLAM3.
 * If not, see <http://www.gnu.org/licenses/>.
 */
+// ======================================================================================================================================
+//                                          ORB-SLAM3: Open-Source SLAM for Monocular, Stereo and RGB-D Cameras
+// ======================================================================================================================================
 /*
-* ORB-SLAM2 主要借鉴了PTAM的思想，借鉴的工作主要有
-* Rubble的ORB特征点；
-* DBow2的place recognition用于闭环检测；
-* Strasdat的闭环矫正和covisibility graph思想；
-* 以及Kuemmerle和Grisetti的g2o用于优化。
-* 
-* 
-* 系统入口:
-* 1】输入图像    得到 相机位置
-*       单目 GrabImageMonocular(im);
-*       双目 GrabImageStereo(imRectLeft, imRectRight);
-*       深度 GrabImageMonocular(imRectLeft, imRectRight);
-* 
-* 2】转换为灰度图
-*       单目 mImGray
-*       双目 mImGray, imGrayRight
-*       深度 mImGray, imDepth
-* 
-* 3】构造 帧Frame
-*       单目 未初始化  Frame(mImGray, mpIniORBextractor)
-*       单目 已初始化  Frame(mImGray, mpORBextractorLeft)
-*       双目      Frame(mImGray, imGrayRight, mpORBextractorLeft, mpORBextractorRight)
-*       深度      Frame(mImGray, imDepth,        mpORBextractorLeft)
-* 
-* 4】跟踪 Track
-*   数据流进入 Tracking线程   Tracking.cc
-* 
-* 
-* 
-* ORB-SLAM利用三个线程分别进行追踪、地图构建和闭环检测。
-
-一、追踪
-
-    ORB特征提取
-    初始姿态估计（速度估计）
-    姿态优化（Track local map，利用邻近的地图点寻找更多的特征匹配，优化姿态）
-    选取关键帧
-
-二、地图构建
-
-    加入关键帧（更新各种图）
-    验证最近加入的地图点（去除Outlier）
-    生成新的地图点（三角法）
-    局部Bundle adjustment（该关键帧和邻近关键帧，去除Outlier）
-    验证关键帧（去除重复帧）
-
-三、闭环检测
-
-    选取相似帧（bag of words）
-    检测闭环（计算相似变换（3D<->3D，存在尺度漂移，因此是相似变换），RANSAC计算内点数）
-    融合三维点，更新各种图
-    图优化（传导变换矩阵），更新地图所有点
-
-*/
+ * ORB-SLAM2 mainly draws inspiration from the ideas of PTAM. The main borrowed components are:
+ * - ORB feature points from Rubble;
+ * - Place recognition from DBoW2, used for loop closure detection;
+ * - Loop closure correction and the covisibility graph concept from Strasdat;
+ * - Optimization using g2o, developed by Kuemmerle and Grisetti.
+ * 
+ * System entry points:
+ * 1】Input image → Estimate camera pose
+ *     Monocular: GrabImageMonocular(im);
+ *     Stereo:    GrabImageStereo(imRectLeft, imRectRight);
+ *     RGB-D:     GrabImageMonocular(imRectLeft, imRectRight);
+ * 
+ * 2】Convert to grayscale image
+ *     Monocular: mImGray
+ *     Stereo:    mImGray, imGrayRight
+ *     RGB-D:     mImGray, imDepth
+ * 
+ * 3】Construct Frame
+ *     Monocular (not initialized):  Frame(mImGray, mpIniORBextractor)
+ *     Monocular (initialized):      Frame(mImGray, mpORBextractorLeft)
+ *     Stereo:                       Frame(mImGray, imGrayRight, mpORBextractorLeft, mpORBextractorRight)
+ *     RGB-D:                        Frame(mImGray, imDepth, mpORBextractorLeft)
+ * 
+ * 4】Tracking
+ *     The data flow enters the Tracking thread → see Tracking.cc
+ * 
+ * ORB-SLAM uses three threads for tracking, map building, and loop closing respectively.
+ *
+ * I. Tracking:
+ *     - ORB feature extraction
+ *     - Initial pose estimation (velocity-based)
+ *     - Pose optimization (Track local map, use nearby map points to find more feature matches and refine pose)
+ *     - Keyframe selection
+ *
+ * II. Mapping:
+ *     - Add keyframe (update all graphs)
+ *     - Validate newly added map points (remove outliers)
+ *     - Generate new map points (via triangulation)
+ *     - Local bundle adjustment (adjust current keyframe and neighboring ones, remove outliers)
+ *     - Keyframe validation (remove redundant keyframes)
+ *
+ * III. Loop Closing:
+ *     - Select similar frames (bag-of-words)
+ *     - Detect loop (compute similarity transform (3D<->3D); due to scale drift, a similarity transform is used, then RANSAC for inlier count)
+ *     - Fuse 3D points, update all graphs
+ *     - Graph optimization (propagate transformation matrices), update all map points
+ */
 
 #include "System.h"
 #include "Converter.h"
@@ -1439,6 +1435,12 @@ bool System::isLost()
 
 vector<Eigen::Matrix4f> System::GetCameraTrajectory()
 {
+    // Check if the tracker is initialized and has images first.
+    if (mpTracker->mState == Tracking::NOT_INITIALIZED ||
+        mpTracker->mState == Tracking::NO_IMAGES_YET)
+    {
+        return vector<Eigen::Matrix4f>();
+    }
     vector<KeyFrame*> vpKFs = mpAtlas->GetAllKeyFrames();
     sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
 
