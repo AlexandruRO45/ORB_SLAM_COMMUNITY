@@ -98,12 +98,12 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mbShutDown(false)
 {
     // Output welcome message
-    cout << endl <<
-    "ORB-SLAM3 Copyright (C) 2017-2020 Carlos Campos, Richard Elvira, Juan J. Gómez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza." << endl <<
-    "ORB-SLAM2 Copyright (C) 2014-2016 Raúl Mur-Artal, José M.M. Montiel and Juan D. Tardós, University of Zaragoza." << endl <<
-    "This program comes with ABSOLUTELY NO WARRANTY;" << endl  <<
-    "This is free software, and you are welcome to redistribute it" << endl <<
-    "under certain conditions. See LICENSE.txt." << endl << endl;
+    // cout << endl <<
+    // "ORB-SLAM3 Copyright (C) 2017-2020 Carlos Campos, Richard Elvira, Juan J. Gómez, José M.M. Montiel and Juan D. Tardós, University of Zaragoza." << endl <<
+    // "ORB-SLAM2 Copyright (C) 2014-2016 Raúl Mur-Artal, José M.M. Montiel and Juan D. Tardós, University of Zaragoza." << endl <<
+    // "This program comes with ABSOLUTELY NO WARRANTY;" << endl  <<
+    // "This is free software, and you are welcome to redistribute it" << endl <<
+    // "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
 
@@ -245,8 +245,8 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         mpAtlas->SetInertialSensor();
 
     //Create Drawers. These are used by the Viewer
-    mpFrameDrawer = new FrameDrawer(mpAtlas);
-    mpMapDrawer = new MapDrawer(mpAtlas, strSettingsFile, settings_);
+    mpFrameDrawer = nullptr;
+    mpMapDrawer = nullptr;
 
     //Initialize the Tracking thread
     //(it will live in the main thread of execution, the one that called this constructor)
@@ -275,7 +275,9 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     if(settings_->doDenseMapping()){
         mpDenseMapper = new DenseMapping(this, mpAtlas, settings_); //todo: resolution as parameter
         mptDenseMapping = new thread(&ORB_SLAM3::DenseMapping::Run, mpDenseMapper);
-        mpMapDrawer->mpDenseMapper = mpDenseMapper;
+        // TODO: leave this asside for a moment
+        // mpMapDrawer = new MapDrawer(mpAtlas, strSettingsFile, settings_);
+        // mpMapDrawer->mpDenseMapper = mpDenseMapper;
     }else{
         mpDenseMapper = NULL;
         mptDenseMapping = NULL;
@@ -304,6 +306,8 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     if(bUseViewer)
     //if(false) // TODO
     {
+        mpFrameDrawer = new FrameDrawer(mpAtlas);
+        mpMapDrawer = new MapDrawer(mpAtlas, strSettingsFile, settings_);
         mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile,settings_);
         mptViewer = new thread(&Viewer::Run, mpViewer);
         mpTracker->SetViewer(mpViewer);
