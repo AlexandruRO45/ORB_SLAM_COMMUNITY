@@ -45,7 +45,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     mState(NO_IMAGES_YET), mSensor(sensor), mTrackedFr(0), mbStep(false),
     mbOnlyTracking(false), mbMapUpdated(false), mbVO(false), mpORBVocabulary(pVoc), mpKeyFrameDB(pKFDB),
     mbReadyToInitializate(false), mpSystem(pSys), mpViewer(NULL), bStepByStep(false),
-    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpAtlas(pAtlas), mnLastRelocFrameId(0), time_recently_lost(5.0),
+    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpAtlas(pAtlas), mnLastRelocFrameId(0), time_recently_lost(100.0),
     mnInitialFrameId(0), mbCreatedMap(false), mnFirstFrameId(0), mpCamera2(nullptr), mpLastKeyFrame(static_cast<KeyFrame*>(NULL))
 {
     // Load camera parameters from settings file
@@ -565,7 +565,8 @@ void Tracking::newParameterLoader(Settings *settings) {
 
         mTlr = settings->Tlr();
 
-        mpFrameDrawer->both = true;
+        if(mpFrameDrawer)
+            mpFrameDrawer->both = true;
     }
 
     if(mSensor==System::STEREO || mSensor==System::RGBD || mSensor==System::IMU_STEREO || mSensor==System::IMU_RGBD ){
@@ -1087,7 +1088,8 @@ bool Tracking::ParseCamParamFile(cv::FileStorage &fSettings)
                 static_cast<KannalaBrandt8*>(mpCamera)->mvLappingArea[0] = leftLappingBegin;
                 static_cast<KannalaBrandt8*>(mpCamera)->mvLappingArea[1] = leftLappingEnd;
 
-                mpFrameDrawer->both = true;
+                if(mpFrameDrawer)
+                    mpFrameDrawer->both = true;
 
                 vector<float> vCamCalib2{fx,fy,cx,cy,k1,k2,k3,k4};
                 mpCamera2 = new KannalaBrandt8(vCamCalib2);
@@ -1520,7 +1522,9 @@ Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat 
 Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp, string filename)
 {
     mImGray = imRGB;
-    cv::Mat imDepth = imD;
+    mImRGB = imRGB;
+    mImDep = imD;
+    // cv::Mat mImDep= imD;
 
     if(mImGray.channels()==3)
     {
@@ -1537,13 +1541,13 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
             cvtColor(mImGray,mImGray,cv::COLOR_BGRA2GRAY);
     }
 
-    if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
-        imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
+    if((fabs(mDepthMapFactor-1.0f)>1e-5) || mImDep.type()!=CV_32F)
+        mImDep.convertTo(mImDep,CV_32F,mDepthMapFactor);
 
     if (mSensor == System::RGBD)
-        mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpCamera);
+        mCurrentFrame = Frame(mImGray,mImDep,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpCamera);
     else if(mSensor == System::IMU_RGBD)
-        mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpCamera,&mLastFrame,*mpImuCalib);
+        mCurrentFrame = Frame(mImGray,mImDep,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,mpCamera,&mLastFrame,*mpImuCalib);
 
 
 
@@ -2020,8 +2024,11 @@ void Tracking::Track()
                     {
                         mpSystem->ResetActiveMap();
                         Verbose::PrintMess("Reseting current map...", Verbose::VERBOSITY_NORMAL);
-                    }else
+                    }else{
+                        //std::cout<<"orb3 creates a new map because lost for too long, we don't do it for now!!!!"<<std::endl;
+                        //don't create new map even if we are lost
                         CreateMapInAtlas();
+                    }
 
                     if(mpLastKeyFrame)
                         mpLastKeyFrame = static_cast<KeyFrame*>(NULL);
@@ -2198,9 +2205,11 @@ void Tracking::Track()
 #endif
 
         // Update drawer
-        mpFrameDrawer->Update(this);
+        if(mpFrameDrawer)
+            mpFrameDrawer->Update(this);
         if(mCurrentFrame.isSet())
-            mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
+            if(mpMapDrawer)
+                mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
 
         if(bOK || mState==RECENTLY_LOST)
         {
@@ -2216,7 +2225,8 @@ void Tracking::Track()
             }
 
             if(mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)
-                mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
+                if(mpMapDrawer)
+                    mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
 
             // Clean VO matches
             for(int i=0; i<mCurrentFrame.N; i++)
@@ -2244,9 +2254,10 @@ void Tracking::Track()
             bool bNeedKF = NeedNewKeyFrame();
 
             // Check if we need to insert a new keyframe
+            // change of ORB3 by Qi, to avoid inserting new KeyFrames when tracking lost and avoid creating new map (e.g. when lookin into a wall)
             // if(bNeedKF && bOK)
             if(bNeedKF && (bOK || (mInsertKFsLost && mState==RECENTLY_LOST &&
-                                   (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD))))
+              (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD))))
                 CreateNewKeyFrame();
 
 #ifdef REGISTER_TIMES
@@ -2283,7 +2294,9 @@ void Tracking::Track()
                     return;
                 }
 
-            CreateMapInAtlas();
+                //std::cout<<"orb3 creates a new map because lost for too long, we don't do it for now!!!!"<<std::endl;
+                //don't create new map even if we are lost
+                CreateMapInAtlas();
 
             return;
         }
@@ -2438,7 +2451,8 @@ void Tracking::StereoInitialization()
 
         mpAtlas->GetCurrentMap()->mvpKeyFrameOrigins.push_back(pKFini);
 
-        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
+        if(mpMapDrawer)
+            mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
 
         mState=OK;
     }
@@ -2649,7 +2663,8 @@ void Tracking::CreateInitialMapMonocular()
 
     mpAtlas->SetReferenceMapPoints(mvpLocalMapPoints);
 
-    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
+    if(mpMapDrawer)
+        mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
 
     mpAtlas->GetCurrentMap()->mvpKeyFrameOrigins.push_back(pKFini);
 
@@ -3067,10 +3082,18 @@ bool Tracking::NeedNewKeyFrame()
     {
         if (mSensor == System::IMU_MONOCULAR && (mCurrentFrame.mTimeStamp-mpLastKeyFrame->mTimeStamp)>=0.25)
             return true;
-        else if ((mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) && (mCurrentFrame.mTimeStamp-mpLastKeyFrame->mTimeStamp)>=0.25)
+        //else if ((mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) && (mCurrentFrame.mTimeStamp-mpLastKeyFrame->mTimeStamp)>=0.25)
+        //edit by Qi, maybe use distance or angle change from tracking thread to trigger instead of 0.25s time
+        else if ((mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD)){
+            auto diff = mCurrentFrame.GetPose() * mpLastKeyFrame->GetPose().inverse();
+            if((mCurrentFrame.mTimeStamp-mpLastKeyFrame->mTimeStamp)>=0.25 && 
+                diff.translation().norm() < 0.20 && diff.rotationMatrix().eulerAngles(0, 1, 2).norm() < 3.14/12)
+                return true;
+        }
+        //else if ((mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD))
             return true;
-        else
-            return false;
+        
+        return false;
     }
 
     if(mbOnlyTracking)
@@ -3221,7 +3244,11 @@ void Tracking::CreateNewKeyFrame()
     if(!mpLocalMapper->SetNotStop(true))
         return;
 
-    KeyFrame* pKF = new KeyFrame(mCurrentFrame,mpAtlas->GetCurrentMap(),mpKeyFrameDB);
+    KeyFrame* pKF=NULL;
+    if (mSensor == System::RGBD || mSensor == System::IMU_RGBD){
+        pKF = new KeyFrame(mCurrentFrame,mpAtlas->GetCurrentMap(),mpKeyFrameDB, this->mImRGB, this->mImDep);
+    }else
+        pKF = new KeyFrame(mCurrentFrame,mpAtlas->GetCurrentMap(),mpKeyFrameDB);
 
     if(mpAtlas->isImuInitialized()) //  || mpLocalMapper->IsInitializing())
         pKF->bImu = true;
