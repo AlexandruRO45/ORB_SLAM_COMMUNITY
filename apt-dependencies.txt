@@ -1,3 +1,4 @@
 libeigen3-dev
 libopencv-dev
+libssl-dev
 libboost-serialization-dev
