@@ -7,26 +7,23 @@ ENDIF()
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 add_compile_options(-w)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall   -O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Check C++11 or C++0x support
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX14)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-   add_definitions(-DCOMPILEDWITHC14)
-   message(STATUS "Using flag -std=c++14.")
-elseif(COMPILER_SUPPORTS_CXX11)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-   add_definitions(-DCOMPILEDWITHC11)
-   message(STATUS "Using flag -std=c++11.")
-else()
-   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
+
+# --- Set Global Compiler Flags ---
+set(BASE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -Wno-unused-variable -Wno-maybe-uninitialized -Wno-deprecated-declarations")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|armv8")
+  set(ARCH_FLAGS "-O3 -march=armv8-a")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+  set(ARCH_FLAGS "-O3 -mfpu=neon -march=armv7-a")
+else() # x86_64
+  set(ARCH_FLAGS "-O3 -mmmx -msse -msse2 -msse3 -mssse3")
 endif()
+
+# Append these flags to the default CMake flags
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} ${BASE_CXX_FLAGS} ${ARCH_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${BASE_CXX_FLAGS} ${ARCH_FLAGS}")
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
